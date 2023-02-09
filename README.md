@@ -42,7 +42,8 @@ Short summary on functionality and used technologies.
 
 ## Node version
 
-| -------- | ----------- |
+| Name     |Version     |
+| -------- | ---------- |
 | node     | v16.19.0   |
 | npm      | 8.19.3     |
 
