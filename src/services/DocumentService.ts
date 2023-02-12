@@ -3,7 +3,7 @@ import * as MicrosoftGraph from "@microsoft/microsoft-graph-types";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { IDocument } from "../utils/types";
 
-interface documentItem {
+interface IDocumentItem {
   webUrl: string;
   fields: IDocument;
 }
@@ -35,7 +35,7 @@ export class DocumentService {
       );
       const documentItems = await request1.get();
 
-      documentItems?.value?.forEach((item: documentItem) => {
+      documentItems?.value?.forEach((item: IDocumentItem) => {
         documents.push({ ...item.fields, webUrl: item.webUrl });
       });
     }

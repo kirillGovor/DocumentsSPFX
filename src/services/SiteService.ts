@@ -3,6 +3,10 @@ import { WebPartContext } from "@microsoft/sp-webpart-base";
 import { SPHttpClient } from "@microsoft/sp-http";
 import { ISite } from "../utils/types";
 
+interface IResultsList {
+  PrimaryQueryResult: { RelevantResults: { Table: { Rows: IRow[] } } };
+}
+
 interface IRow {
   Cells: IRowItem[];
 }
@@ -19,7 +23,7 @@ export class SiteService {
     this.context = context;
   }
 
-  public transformSite = (results: any): ISite[] => {
+  public transformSite = (results: IResultsList): ISite[] => {
     const sites: ISite[] = [];
     const resultsList =
       results?.PrimaryQueryResult?.RelevantResults?.Table?.Rows;
