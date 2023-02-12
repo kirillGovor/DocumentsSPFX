@@ -1,4 +1,4 @@
-declare interface ISitesWebPartStrings {
+declare interface ISiteWebPartStrings {
   PropertyPaneDescription: string;
   BasicGroupName: string;
   DescriptionFieldLabel: string;
@@ -13,6 +13,6 @@ declare interface ISitesWebPartStrings {
 }
 
 declare module 'SitesWebPartStrings' {
-  const strings: ISitesWebPartStrings;
+  const strings: ISiteWebPartStrings;
   export = strings;
 }

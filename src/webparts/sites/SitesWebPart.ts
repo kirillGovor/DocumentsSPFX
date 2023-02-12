@@ -1,35 +1,39 @@
-import * as React from 'react';
-import * as ReactDom from 'react-dom';
-import { Version } from '@microsoft/sp-core-library';
+import * as React from "react";
+import * as ReactDom from "react-dom";
+import { Version } from "@microsoft/sp-core-library";
 import {
-  IPropertyPaneConfiguration,
-  PropertyPaneTextField
-} from '@microsoft/sp-property-pane';
-import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
-import { IReadonlyTheme } from '@microsoft/sp-component-base';
+  BaseClientSideWebPart,
+  IWebPartPropertiesMetadata,
+} from "@microsoft/sp-webpart-base";
 
-import * as strings from 'SitesWebPartStrings';
-import Sites from './components/Sites';
-import { ISitesProps } from './components/ISitesProps';
+import {
+  IDynamicDataPropertyDefinition,
+  IDynamicDataCallables
+} from '@microsoft/sp-dynamic-data';
 
-export interface ISitesWebPartProps {
-  description: string;
-}
+import Sites from "./components/Sites";
+import { ISitesProps } from "./components/ISitesProps";
+import { SiteService } from "../../services/SiteService";
+import { ISiteProperty } from "../../utils/types";
 
-export default class SitesWebPart extends BaseClientSideWebPart<ISitesWebPartProps> {
+export interface ISiteWebPartProps {}
 
-  private _isDarkTheme: boolean = false;
-  private _environmentMessage: string = '';
+export default class SitesWebPart extends BaseClientSideWebPart<ISiteWebPartProps> implements IDynamicDataCallables {
+  private SiteService: SiteService;
+  private _selectedSite: ISiteProperty | undefined;
+
+  private _siteSelected = (name: string, key: string): void => {
+    this._selectedSite = {name, key};
+    this.context.dynamicDataSourceManager.notifyPropertyChanged("site");
+  };
 
   public render(): void {
     const element: React.ReactElement<ISitesProps> = React.createElement(
       Sites,
       {
-        description: this.properties.description,
-        isDarkTheme: this._isDarkTheme,
-        environmentMessage: this._environmentMessage,
-        hasTeamsContext: !!this.context.sdks.microsoftTeams,
-        userDisplayName: this.context.pageContext.user.displayName
+        context: this.context,
+        SiteService: this.SiteService,
+        onSiteSelected: this._siteSelected,
       }
     );
 
@@ -37,55 +41,11 @@ export default class SitesWebPart extends BaseClientSideWebPart<ISitesWebPartPro
   }
 
   protected onInit(): Promise<void> {
-    return this._getEnvironmentMessage().then(message => {
-      this._environmentMessage = message;
+    return new Promise<void>((resolve, _reject) => {
+      this.SiteService = new SiteService(this.context);
+      this.context.dynamicDataSourceManager.initializeSource(this);
+      resolve();
     });
-  }
-
-
-
-  private _getEnvironmentMessage(): Promise<string> {
-    if (!!this.context.sdks.microsoftTeams) { // running in Teams, office.com or Outlook
-      return this.context.sdks.microsoftTeams.teamsJs.app.getContext()
-        .then(context => {
-          let environmentMessage: string = '';
-          switch (context.app.host.name) {
-            case 'Office': // running in Office
-              environmentMessage = this.context.isServedFromLocalhost ? strings.AppLocalEnvironmentOffice : strings.AppOfficeEnvironment;
-              break;
-            case 'Outlook': // running in Outlook
-              environmentMessage = this.context.isServedFromLocalhost ? strings.AppLocalEnvironmentOutlook : strings.AppOutlookEnvironment;
-              break;
-            case 'Teams': // running in Teams
-              environmentMessage = this.context.isServedFromLocalhost ? strings.AppLocalEnvironmentTeams : strings.AppTeamsTabEnvironment;
-              break;
-            default:
-              throw new Error('Unknown host');
-          }
-
-          return environmentMessage;
-        });
-    }
-
-    return Promise.resolve(this.context.isServedFromLocalhost ? strings.AppLocalEnvironmentSharePoint : strings.AppSharePointEnvironment);
-  }
-
-  protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
-    if (!currentTheme) {
-      return;
-    }
-
-    this._isDarkTheme = !!currentTheme.isInverted;
-    const {
-      semanticColors
-    } = currentTheme;
-
-    if (semanticColors) {
-      this.domElement.style.setProperty('--bodyText', semanticColors.bodyText || null);
-      this.domElement.style.setProperty('--link', semanticColors.link || null);
-      this.domElement.style.setProperty('--linkHovered', semanticColors.linkHovered || null);
-    }
-
   }
 
   protected onDispose(): void {
@@ -93,28 +53,27 @@ export default class SitesWebPart extends BaseClientSideWebPart<ISitesWebPartPro
   }
 
   protected get dataVersion(): Version {
-    return Version.parse('1.0');
+    return Version.parse("1.0");
   }
 
-  protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
+  protected get propertiesMetadata(): IWebPartPropertiesMetadata {
     return {
-      pages: [
-        {
-          header: {
-            description: strings.PropertyPaneDescription
-          },
-          groups: [
-            {
-              groupName: strings.BasicGroupName,
-              groupFields: [
-                PropertyPaneTextField('description', {
-                  label: strings.DescriptionFieldLabel
-                })
-              ]
-            }
-          ]
-        }
-      ]
+      site: {
+        dynamicPropertyType: "string",
+      },
     };
+  }
+
+  public getPropertyDefinitions(): ReadonlyArray<IDynamicDataPropertyDefinition> {
+    return [{ id: "site", title: "site" }];
+  }
+
+  public getPropertyValue(propertyId: string): ISiteProperty | undefined {
+    switch (propertyId) {
+      case "site":
+        return this._selectedSite;
+    }
+
+    throw new Error("Bad property id");
   }
 }

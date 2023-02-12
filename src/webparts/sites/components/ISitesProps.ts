@@ -1,7 +1,8 @@
+import { WebPartContext } from "@microsoft/sp-webpart-base";
+import { SiteService } from "../../../services/SiteService";
+
 export interface ISitesProps {
-  description: string;
-  isDarkTheme: boolean;
-  environmentMessage: string;
-  hasTeamsContext: boolean;
-  userDisplayName: string;
+  context: WebPartContext;
+  SiteService: SiteService;
+  onSiteSelected: (name: string, ket: string) => void;
 }
