@@ -14,6 +14,24 @@
       "termsOfUseUrl": "",
       "mpnId": "Undefined-1.16.1"
     },
+    "webApiPermissionRequests": [
+      {
+        "resource": "Microsoft Graph",
+        "scope": "Sites.Read"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "Sites.ReadWrite"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "Files.ReadWrite.All"
+      },
+      {
+        "resource": "Microsoft Graph",
+        "scope": "Files.ReadWrite.All"
+      }
+    ],
     "metadata": {
       "shortDescription": {
         "default": "sites description"
@@ -30,11 +48,11 @@
         "title": "sites Feature",
         "description": "The feature that activates elements of the sites solution.",
         "id": "e866fc38-ba1f-4007-be4c-e55758278df4",
-        "version": "1.0.0.0"
+        "version": "1.0.0.3"
       }
     ]
   },
   "paths": {
-    "zippedPackage": "solution/sites.sppkg"
+    "zippedPackage": "solution/sites5.sppkg"
   }
 }

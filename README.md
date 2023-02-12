@@ -44,7 +44,7 @@ Short summary on functionality and used technologies.
 
 | Name     |Version     |
 | -------- | ---------- |
-| node     | v16.19.0   |
+| node     | 16.19.0    |
 | npm      | 8.19.3     |
 
 ## Minimal Path to Awesome
