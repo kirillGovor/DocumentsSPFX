@@ -1,35 +1,35 @@
-import * as React from 'react';
-import * as ReactDom from 'react-dom';
-import { Version } from '@microsoft/sp-core-library';
+import * as React from "react";
+import * as ReactDom from "react-dom";
+import { Version } from "@microsoft/sp-core-library";
+import { IDynamicDataSource } from "@microsoft/sp-dynamic-data";
 import {
-  IPropertyPaneConfiguration,
-  PropertyPaneTextField
-} from '@microsoft/sp-property-pane';
-import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
-import { IReadonlyTheme } from '@microsoft/sp-component-base';
+  BaseClientSideWebPart,
+  IWebPartPropertiesMetadata,
+} from "@microsoft/sp-webpart-base";
 
-import * as strings from 'DocumentsWebPartStrings';
-import Documents from './components/Documents';
-import { IDocumentsProps } from './components/IDocumentsProps';
+import { DynamicProperty } from "@microsoft/sp-component-base";
+import Documents from "./components/Documents";
+import { IDocumentsProps } from "./components/IDocumentsProps";
+import { DocumentService } from "../../services/DocumentService";
+import { ISiteProperty } from "../../utils/types";
 
 export interface IDocumentsWebPartProps {
   description: string;
+  site: DynamicProperty<ISiteProperty>;
 }
 
 export default class DocumentsWebPart extends BaseClientSideWebPart<IDocumentsWebPartProps> {
-
-  private _isDarkTheme: boolean = false;
-  private _environmentMessage: string = '';
+  private DocumentService: DocumentService;
+  private site: ISiteProperty;
+  private _dataSources: IDynamicDataSource[] = [];
 
   public render(): void {
     const element: React.ReactElement<IDocumentsProps> = React.createElement(
       Documents,
       {
-        description: this.properties.description,
-        isDarkTheme: this._isDarkTheme,
-        environmentMessage: this._environmentMessage,
-        hasTeamsContext: !!this.context.sdks.microsoftTeams,
-        userDisplayName: this.context.pageContext.user.displayName
+        site: this.site,
+        DocumentService: this.DocumentService,
+        context: this.context,
       }
     );
 
@@ -37,55 +37,77 @@ export default class DocumentsWebPart extends BaseClientSideWebPart<IDocumentsWe
   }
 
   protected onInit(): Promise<void> {
-    return this._getEnvironmentMessage().then(message => {
-      this._environmentMessage = message;
+    return new Promise<void>((resolve, _reject) => {
+      this._initDataSources();
+      this.context.dynamicDataProvider.registerAvailableSourcesChanged(
+        this._initDataSources.bind(this, true)
+      );
+      this.DocumentService = new DocumentService(this.context);
+      resolve();
     });
   }
 
+  private _initDataSources(): void {
+    const availableDataSources =
+      this.context.dynamicDataProvider.getAvailableSources();
 
+    if (availableDataSources && availableDataSources.length) {
+      const dataSources = this._dataSources;
+      const availableDataSourcesIds = availableDataSources.map((ds) => ds.id);
 
-  private _getEnvironmentMessage(): Promise<string> {
-    if (!!this.context.sdks.microsoftTeams) { // running in Teams, office.com or Outlook
-      return this.context.sdks.microsoftTeams.teamsJs.app.getContext()
-        .then(context => {
-          let environmentMessage: string = '';
-          switch (context.app.host.name) {
-            case 'Office': // running in Office
-              environmentMessage = this.context.isServedFromLocalhost ? strings.AppLocalEnvironmentOffice : strings.AppOfficeEnvironment;
-              break;
-            case 'Outlook': // running in Outlook
-              environmentMessage = this.context.isServedFromLocalhost ? strings.AppLocalEnvironmentOutlook : strings.AppOutlookEnvironment;
-              break;
-            case 'Teams': // running in Teams
-              environmentMessage = this.context.isServedFromLocalhost ? strings.AppLocalEnvironmentTeams : strings.AppTeamsTabEnvironment;
-              break;
-            default:
-              throw new Error('Unknown host');
+      for (let i = 0, len = dataSources.length; i < len; i++) {
+        const dataSource = dataSources[i];
+        if (availableDataSourcesIds.indexOf(dataSource.id) === -1) {
+          dataSources.splice(i, 1);
+          try {
+            this.context.dynamicDataProvider.unregisterPropertyChanged(
+              dataSource.id,
+              "site",
+              () => {console.log('property has been deregistered')}
+            );
+          } catch (err) {
+            console.error(err);
           }
+          i--;
+          len--;
+        }
+      }
 
-          return environmentMessage;
-        });
+      for (let i = 0, len = availableDataSources.length; i < len; i++) {
+        const dataSource = availableDataSources[i];
+        if (
+          !dataSource.getPropertyDefinitions().filter((pd) => pd.id === "site")
+            .length
+        ) {
+          continue;
+        }
+        if (
+          !dataSources ||
+          !dataSources.filter((ds) => ds.id === dataSource.id).length
+        ) {
+          dataSources.push(dataSource);
+          this.context.dynamicDataProvider.registerPropertyChanged(
+            dataSource.id,
+            "site",
+            async () => {
+              const test = this.context.dynamicDataProvider.tryGetSource(
+                this._dataSources[0].id
+              );
+              this.site = await test.getPropertyValueAsync("site");
+              this.render();
+            }
+          );
+        }
+      }
     }
-
-    return Promise.resolve(this.context.isServedFromLocalhost ? strings.AppLocalEnvironmentSharePoint : strings.AppSharePointEnvironment);
   }
 
-  protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
-    if (!currentTheme) {
-      return;
-    }
-
-    this._isDarkTheme = !!currentTheme.isInverted;
-    const {
-      semanticColors
-    } = currentTheme;
-
-    if (semanticColors) {
-      this.domElement.style.setProperty('--bodyText', semanticColors.bodyText || null);
-      this.domElement.style.setProperty('--link', semanticColors.link || null);
-      this.domElement.style.setProperty('--linkHovered', semanticColors.linkHovered || null);
-    }
-
+  protected get propertiesMetadata(): IWebPartPropertiesMetadata {
+    return {
+      site: {
+        dynamicPropertyType: "object",
+      },
+    };
   }
 
   protected onDispose(): void {
@@ -93,28 +115,6 @@ export default class DocumentsWebPart extends BaseClientSideWebPart<IDocumentsWe
   }
 
   protected get dataVersion(): Version {
-    return Version.parse('1.0');
-  }
-
-  protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
-    return {
-      pages: [
-        {
-          header: {
-            description: strings.PropertyPaneDescription
-          },
-          groups: [
-            {
-              groupName: strings.BasicGroupName,
-              groupFields: [
-                PropertyPaneTextField('description', {
-                  label: strings.DescriptionFieldLabel
-                })
-              ]
-            }
-          ]
-        }
-      ]
-    };
+    return Version.parse("1.0");
   }
 }

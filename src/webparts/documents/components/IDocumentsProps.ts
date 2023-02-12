@@ -1,7 +1,9 @@
+import { WebPartContext } from "@microsoft/sp-webpart-base";
+import { DocumentService } from "../../../services/DocumentService";
+import { ISiteProperty } from "../../../utils/types";
+
 export interface IDocumentsProps {
-  description: string;
-  isDarkTheme: boolean;
-  environmentMessage: string;
-  hasTeamsContext: boolean;
-  userDisplayName: string;
+  site: ISiteProperty;
+  DocumentService: DocumentService;
+  context: WebPartContext;
 }
